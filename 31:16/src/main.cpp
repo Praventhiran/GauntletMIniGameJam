@@ -6,6 +6,7 @@
 
 #include "GameState.hpp"
 #include "WeaponType.hpp"
+#include "LevelUpOption.hpp"
 
 #include "Player.hpp"
 #include "PlayerProgress.hpp"
@@ -40,6 +41,10 @@ namespace
     constexpr int ENEMY_CONTACT_DAMAGE = 10;
 
 
+    // =========================
+    // UNLOCK NEW WEAPON
+    // =========================
+
     void UnlockWeapon(Player& player, WeaponType type)
     {
         switch (type)
@@ -64,14 +69,32 @@ namespace
                 break;
         }
     }
+
+
+    // =========================
+    // APPLY LEVEL-UP OPTION
+    // =========================
+
+    void ApplyLevelUpOption(Player& player, const LevelUpOption& option)
+    {
+        if (option.kind == LevelUpOptionKind::Upgrade)
+        {
+            player.UpgradeWeapon(option.type);
+
+            return;
+        }
+
+
+        UnlockWeapon(player, option.type);
+    }
 }
 
 
 int main()
 {
-    // -------------------------
+    // =========================
     // INITIALIZATION
-    // -------------------------
+    // =========================
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "31:16");
 
@@ -82,6 +105,10 @@ int main()
     SetTargetFPS(60);
 
 
+    // -------------------------
+    // PLAYER
+    // -------------------------
+
     Player player(
         {
             SCREEN_WIDTH / 2.0f,
@@ -90,8 +117,16 @@ int main()
     );
 
 
+    // -------------------------
+    // PLAYER PROGRESSION
+    // -------------------------
+
     PlayerProgress playerProgress;
 
+
+    // -------------------------
+    // UI
+    // -------------------------
 
     HealthBar healthBar(player.GetMaxHealth());
 
@@ -100,8 +135,11 @@ int main()
     LevelUpMenu levelUpMenu;
 
 
-    EnemySpawner enemySpawner;
+    // -------------------------
+    // GAME SYSTEMS
+    // -------------------------
 
+    EnemySpawner enemySpawner;
 
     ProjectileManager projectileManager;
 
@@ -110,6 +148,10 @@ int main()
     XPManager xpManager;
 
 
+    // -------------------------
+    // GAME CONTEXT
+    // -------------------------
+
     GameContext context
     {
         projectileManager,
@@ -117,24 +159,27 @@ int main()
     };
 
 
-    GameState gameState = GameState::Playing;
+    // -------------------------
+    // GAME STATE
+    // -------------------------
 
+    GameState gameState = GameState::Playing;
 
     int pendingLevelUps = 0;
 
 
-    // -------------------------
+    // =========================
     // GAME LOOP
-    // -------------------------
+    // =========================
 
     while (!WindowShouldClose())
     {
         float dt = GetFrameTime();
 
 
-        // -------------------------
-        // UI
-        // -------------------------
+        // =========================
+        // UI UPDATE
+        // =========================
 
         healthBar.Update(dt);
 
@@ -151,10 +196,15 @@ int main()
 
 
             // -------------------------
-            // PLAYER
+            // PLAYER MOVEMENT
             // -------------------------
 
             player.Update(dt);
+
+
+            // -------------------------
+            // PLAYER WEAPONS
+            // -------------------------
 
             player.UpdateWeapons(dt, mousePosition, context);
 
@@ -188,9 +238,9 @@ int main()
             );
 
 
-            // -------------------------
+            // =========================
             // DEAD ENEMIES DROP XP
-            // -------------------------
+            // =========================
 
             for (const auto& enemy : enemySpawner.GetEnemies())
             {
@@ -204,9 +254,9 @@ int main()
             enemySpawner.RemoveDeadEnemies();
 
 
-            // -------------------------
-            // XP PICKUP
-            // -------------------------
+            // =========================
+            // XP COLLECTION
+            // =========================
 
             int collectedXP = xpManager.Update(dt, player);
 
@@ -227,9 +277,9 @@ int main()
             }
 
 
-            // -------------------------
+            // =========================
             // ENEMY VS PLAYER
-            // -------------------------
+            // =========================
 
             for (auto& enemy : enemySpawner.GetEnemies())
             {
@@ -251,9 +301,9 @@ int main()
             }
 
 
-            // -------------------------
+            // =========================
             // STATE CHANGE
-            // -------------------------
+            // =========================
 
             if (player.IsDead())
             {
@@ -261,9 +311,9 @@ int main()
             }
             else if (pendingLevelUps > 0)
             {
-                if (levelUpMenu.HasAvailableWeapons())
+                if (levelUpMenu.HasAvailableOptions(player))
                 {
-                    levelUpMenu.BuildChoices();
+                    levelUpMenu.BuildChoices(player);
 
                     GameAudio::PlayLevelUp();
 
@@ -278,29 +328,19 @@ int main()
 
 
         // =========================
-        // LEVEL UP
+        // LEVEL-UP MENU
         // =========================
 
         else if (gameState == GameState::LevelUp)
         {
-            std::optional<WeaponType> selectedWeapon = levelUpMenu.Update(dt);
+            std::optional<LevelUpOption> selectedOption = levelUpMenu.Update(dt);
 
 
-            if (selectedWeapon.has_value())
+            if (selectedOption.has_value())
             {
                 GameAudio::PlayMenuSelect();
 
-
-                UnlockWeapon(
-                    player,
-                    selectedWeapon.value()
-                );
-
-
-                levelUpMenu.MarkUnlocked(
-                    selectedWeapon.value()
-                );
-
+                ApplyLevelUpOption(player, selectedOption.value());
 
                 pendingLevelUps--;
 
@@ -309,20 +349,15 @@ int main()
                 // ANOTHER LEVEL WAITING
                 // -------------------------
 
-                if (
-                    pendingLevelUps > 0 &&
-                    levelUpMenu.HasAvailableWeapons()
-                )
+                if (pendingLevelUps > 0 && levelUpMenu.HasAvailableOptions(player))
                 {
-                    levelUpMenu.BuildChoices();
+                    levelUpMenu.BuildChoices(player);
 
                     GameAudio::PlayLevelUp();
-
-                    gameState = GameState::LevelUp;
                 }
                 else
                 {
-                    if (!levelUpMenu.HasAvailableWeapons())
+                    if (!levelUpMenu.HasAvailableOptions(player))
                     {
                         pendingLevelUps = 0;
                     }
@@ -335,6 +370,17 @@ int main()
 
 
         // =========================
+        // GAME OVER
+        // =========================
+
+        else if (gameState == GameState::GameOver)
+        {
+            // No world update.
+            // Battlefield stays frozen.
+        }
+
+
+        // =========================
         // DRAW
         // =========================
 
@@ -343,9 +389,9 @@ int main()
         ClearBackground(DARKGRAY);
 
 
-        // -------------------------
+        // =========================
         // WORLD
-        // -------------------------
+        // =========================
 
         player.Draw();
 
@@ -363,18 +409,18 @@ int main()
         xpManager.Draw();
 
 
-        // -------------------------
+        // =========================
         // HUD
-        // -------------------------
+        // =========================
 
         healthBar.Draw(player.GetHealth());
 
         experienceBar.Draw(playerProgress.GetLevel(), playerProgress.GetCurrentXP(), playerProgress.GetXPToNextLevel());
 
 
-        // -------------------------
+        // =========================
         // LEVEL-UP SCREEN
-        // -------------------------
+        // =========================
 
         if (gameState == GameState::LevelUp)
         {
@@ -387,13 +433,13 @@ int main()
             );
 
 
-            levelUpMenu.Draw();
+            levelUpMenu.Draw(player);
         }
 
 
-        // -------------------------
-        // GAME OVER
-        // -------------------------
+        // =========================
+        // GAME OVER SCREEN
+        // =========================
 
         if (gameState == GameState::GameOver)
         {
@@ -427,9 +473,9 @@ int main()
     }
 
 
-    // -------------------------
+    // =========================
     // CLEANUP
-    // -------------------------
+    // =========================
 
     GameAudio::Unload();
 

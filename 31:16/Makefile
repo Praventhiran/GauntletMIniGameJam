@@ -46,6 +46,7 @@ SRC = src/main.cpp \
 	src/XPOrb.cpp \
 	src/XPManager.cpp \
 	src/LevelUpMenu.cpp \
+	src/WeaponDraw.cpp \
 
 all:
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SRC) $(LIBS) -o $(TARGET)

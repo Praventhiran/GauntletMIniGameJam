@@ -1,9 +1,12 @@
 #pragma once
 
-#include "WeaponType.hpp"
+#include "LevelUpOption.hpp"
 
 #include <array>
 #include <optional>
+
+
+class Player;
 
 
 class LevelUpMenu
@@ -13,30 +16,19 @@ public:
     LevelUpMenu();
 
 
-    void BuildChoices();
+    void BuildChoices(const Player& player);
 
-    std::optional<WeaponType> Update(float dt);
+    std::optional<LevelUpOption> Update(float dt);
 
-    void Draw() const;
+    void Draw(const Player& player) const;
 
 
-    void MarkUnlocked(WeaponType type);
-
-    bool HasAvailableWeapons() const;
+    bool HasAvailableOptions(const Player& player) const;
 
 
 private:
 
-    bool m_boomerangUnlocked;
-
-    bool m_swordUnlocked;
-
-    bool m_beamUnlocked;
-
-    bool m_auraUnlocked;
-
-
-    std::array<WeaponType, 3> m_choices;
+    std::array<LevelUpOption, 3> m_choices;
 
     std::array<float, 3> m_cardScales;
 

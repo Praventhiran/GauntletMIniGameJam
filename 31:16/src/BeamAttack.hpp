@@ -26,11 +26,13 @@ public:
     bool CanDamage() const override;
 
 
+
 protected:
 
     bool CheckCollision(
         const Enemy& enemy
     ) const override;
+
 
 
 private:

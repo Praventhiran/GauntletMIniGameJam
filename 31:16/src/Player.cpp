@@ -22,7 +22,11 @@ Player::Player(Vector2 position)
     m_damageCooldown(0.0f)
     
 {
+    m_weapons.push_back(std::make_unique<SwordWeapon>());
+    m_weapons.push_back(std::make_unique<AuraWeapon>());
+    m_weapons.push_back(std::make_unique<BeamWeapon>());
     m_weapons.push_back(std::make_unique<BasicGunWeapon>());
+    m_weapons.push_back(std::make_unique<BoomerangWeapon>());
 
 }
 
@@ -99,9 +103,14 @@ void Player::AddWeapon(std::unique_ptr<Weapon> weapon)
         return;
     }
 
-        m_weapons.push_back(std::move(weapon)
-        
-    );
+
+    if (HasWeapon(weapon->GetType()))
+    {
+        return;
+    }
+
+
+    m_weapons.push_back(std::move(weapon));
 }
 
     
@@ -149,6 +158,133 @@ bool Player::TryTakeDamage(int amount)
     m_damageCooldown = PLAYER_DAMAGE_COOLDOWN;
 
     return true;
+}
+
+
+
+bool Player::HasWeapon(WeaponType type) const
+{
+    return FindWeapon(type) != nullptr;
+}
+
+
+bool Player::CanUpgradeWeapon(WeaponType type) const
+{
+    const Weapon* weapon = FindWeapon(type);
+
+
+    if (weapon == nullptr)
+    {
+        return false;
+    }
+
+
+    return weapon->CanUpgrade();
+}
+
+
+int Player::GetWeaponLevel(WeaponType type) const
+{
+    const Weapon* weapon = FindWeapon(type);
+
+
+    if (weapon == nullptr)
+    {
+        return 0;
+    }
+
+
+    return weapon->GetLevel();
+}
+
+
+const char* Player::GetWeaponDisplayName(WeaponType type) const
+{
+    const Weapon* weapon = FindWeapon(type);
+
+
+    if (weapon == nullptr)
+    {
+        return "";
+    }
+
+
+    return weapon->GetDisplayName();
+}
+
+
+const char* Player::GetWeaponUpgradeName(WeaponType type) const
+{
+    const Weapon* weapon = FindWeapon(type);
+
+
+    if (weapon == nullptr)
+    {
+        return "";
+    }
+
+
+    return weapon->GetUpgradeName();
+}
+
+
+const char* Player::GetWeaponUpgradeDescription(WeaponType type) const
+{
+    const Weapon* weapon = FindWeapon(type);
+
+
+    if (weapon == nullptr)
+    {
+        return "";
+    }
+
+
+    return weapon->GetUpgradeDescription();
+}
+
+
+void Player::UpgradeWeapon(WeaponType type)
+{
+    Weapon* weapon = FindWeapon(type);
+
+
+    if (weapon == nullptr)
+    {
+        return;
+    }
+
+
+    weapon->Upgrade();
+}
+
+
+Weapon* Player::FindWeapon(WeaponType type)
+{
+    for (auto& weapon : m_weapons)
+    {
+        if (weapon->GetType() == type)
+        {
+            return weapon.get();
+        }
+    }
+
+
+    return nullptr;
+}
+
+
+const Weapon* Player::FindWeapon(WeaponType type) const
+{
+    for (const auto& weapon : m_weapons)
+    {
+        if (weapon->GetType() == type)
+        {
+            return weapon.get();
+        }
+    }
+
+
+    return nullptr;
 }
 
 

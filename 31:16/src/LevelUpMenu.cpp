@@ -2,555 +2,842 @@
 
 #include "GameAudio.hpp"
 #include "GameText.hpp"
+#include "Player.hpp"
 
 #include "raylib.h"
 
 #include <algorithm>
+#include <array>
 #include <vector>
 
 
 namespace
 {
-    constexpr float CARD_WIDTH = 290.0f;
-    constexpr float CARD_HEIGHT = 260.0f;
 
-    constexpr float CARD_GAP = 25.0f;
+constexpr float CARD_WIDTH = 300.0f;
+constexpr float CARD_HEIGHT = 350.0f;
 
-    constexpr float CARD_Y = 245.0f;
+constexpr float CARD_GAP = 25.0f;
 
-
-    constexpr float NORMAL_SCALE = 1.0f;
-
-    constexpr float HOVER_SCALE = 1.06f;
-
-    constexpr float HOVER_SPEED = 12.0f;
+constexpr float CARD_Y = 220.0f;
 
 
-    struct WeaponCardData
+constexpr float NORMAL_SCALE = 1.0f;
+
+constexpr float HOVER_SCALE = 1.10f;
+
+constexpr float HOVER_SPEED = 12.0f;
+
+
+
+constexpr std::array<WeaponType, 5> ALL_WEAPONS =
+{
+    WeaponType::BasicGun,
+    WeaponType::Boomerang,
+    WeaponType::Sword,
+    WeaponType::Beam,
+    WeaponType::Aura
+};
+
+
+
+const char* GetWeaponName(WeaponType type)
+{
+    switch(type)
     {
-        WeaponType type;
+        case WeaponType::BasicGun:
+            return "FIREWORK LAUNCHER";
 
-        const char* name;
+        case WeaponType::Boomerang:
+            return "ROTI CANAI";
 
-        const char* descriptionLine1;
+        case WeaponType::Sword:
+            return "JALUR GEMILANG";
 
-        const char* descriptionLine2;
-    };
+        case WeaponType::Beam:
+            return "TEH TARIK BEAM";
 
-
-    constexpr WeaponCardData WEAPON_DATA[] =
-    {
-        {
-            WeaponType::Boomerang,
-            "BOOMERANG",
-            "Flies outward",
-            "then returns"
-        },
-
-        {
-            WeaponType::Sword,
-            "SWORD",
-            "Fast close-range",
-            "directional slash"
-        },
-
-        {
-            WeaponType::Beam,
-            "BEAM",
-            "Charge and fire",
-            "a huge beam"
-        },
-
-        {
-            WeaponType::Aura,
-            "AURA",
-            "Damage enemies",
-            "around the player"
-        }
-    };
-
-
-    const WeaponCardData& GetWeaponData(WeaponType type)
-    {
-        for (const WeaponCardData& data : WEAPON_DATA)
-        {
-            if (data.type == type)
-            {
-                return data;
-            }
-        }
-
-        return WEAPON_DATA[0];
+        case WeaponType::Aura:
+            return "DURIAN SMELL";
     }
 
 
-    Rectangle GetBaseCardRectangle(int index, int cardCount)
-    {
-        float totalWidth =
-            CARD_WIDTH * static_cast<float>(cardCount) +
-            CARD_GAP * static_cast<float>(cardCount - 1);
-
-
-        float startX =
-            (
-                static_cast<float>(GetScreenWidth()) -
-                totalWidth
-            ) /
-            2.0f;
-
-
-        return
-        {
-            startX + static_cast<float>(index) * (CARD_WIDTH + CARD_GAP),
-            CARD_Y,
-            CARD_WIDTH,
-            CARD_HEIGHT
-        };
-    }
-
-
-    Rectangle ScaleRectangle(Rectangle rectangle, float scale)
-    {
-        float scaledWidth = rectangle.width * scale;
-
-        float scaledHeight = rectangle.height * scale;
-
-
-        return
-        {
-            rectangle.x + (rectangle.width - scaledWidth) / 2.0f,
-            rectangle.y + (rectangle.height - scaledHeight) / 2.0f,
-            scaledWidth,
-            scaledHeight
-        };
-    }
+    return "WEAPON";
 }
 
+
+
+const char* GetUnlockDescription(WeaponType type)
+{
+    switch(type)
+    {
+        case WeaponType::BasicGun:
+            return "Explosive fireworks\nrain from the sky.";
+
+        case WeaponType::Boomerang:
+            return "Roticanai spins\nand comes back.";
+
+        case WeaponType::Sword:
+            return "Malaysia flag\nbecomes a blade.";
+
+        case WeaponType::Beam:
+            return "Hot teh tarik\nmelts enemies.";
+
+        case WeaponType::Aura:
+            return "Deadly durian aura\nhurts enemies.";
+    }
+
+
+    return "";
+}
+
+
+
+Rectangle GetBaseCardRectangle(
+    int index,
+    int cardCount
+)
+{
+    float totalWidth =
+        CARD_WIDTH *
+        static_cast<float>(cardCount)
+        +
+        CARD_GAP *
+        static_cast<float>(cardCount - 1);
+
+
+
+    float startX =
+        (
+            static_cast<float>(GetScreenWidth())
+            -
+            totalWidth
+        )
+        /
+        2.0f;
+
+
+
+    return
+    {
+        startX +
+        static_cast<float>(index)
+        *
+        (
+            CARD_WIDTH +
+            CARD_GAP
+        ),
+
+        CARD_Y,
+
+        CARD_WIDTH,
+
+        CARD_HEIGHT
+    };
+}
+
+
+
+Rectangle ScaleRectangle(
+    Rectangle rectangle,
+    float scale
+)
+{
+    float newWidth =
+        rectangle.width * scale;
+
+
+    float newHeight =
+        rectangle.height * scale;
+
+
+
+    return
+    {
+        rectangle.x +
+        (rectangle.width - newWidth)
+        /
+        2.0f,
+
+        rectangle.y +
+        (rectangle.height - newHeight)
+        /
+        2.0f,
+
+        newWidth,
+
+        newHeight
+    };
+}
+
+}
+
+
+
+// ------------------------------------------------------
+// Constructor
+// ------------------------------------------------------
 
 LevelUpMenu::LevelUpMenu()
-    : m_boomerangUnlocked(false),
-      m_swordUnlocked(false),
-      m_beamUnlocked(false),
-      m_auraUnlocked(false),
-      m_choices {},
-      m_cardScales
-      {
-          NORMAL_SCALE,
-          NORMAL_SCALE,
-          NORMAL_SCALE
-      },
-      m_choiceCount(0),
-      m_hoveredIndex(-1)
+
+    :
+
+    m_choices {},
+
+    m_cardScales
+    {
+        NORMAL_SCALE,
+        NORMAL_SCALE,
+        NORMAL_SCALE
+    },
+
+    m_choiceCount(0),
+
+    m_hoveredIndex(-1)
+
 {
 }
 
 
-void LevelUpMenu::BuildChoices()
+
+// ------------------------------------------------------
+// Build Choices
+// ------------------------------------------------------
+
+void LevelUpMenu::BuildChoices(
+    const Player& player
+)
 {
-    std::vector<WeaponType> availableWeapons;
+    std::vector<LevelUpOption> availableOptions;
 
 
-    if (!m_boomerangUnlocked)
+
+    for(auto type : ALL_WEAPONS)
     {
-        availableWeapons.push_back(WeaponType::Boomerang);
+
+        if(player.HasWeapon(type))
+        {
+
+            if(player.CanUpgradeWeapon(type))
+            {
+                availableOptions.push_back(
+                {
+                    type,
+                    LevelUpOptionKind::Upgrade,
+                    player.GetWeaponLevel(type)+1
+                });
+            }
+
+        }
+
+        else if(type != WeaponType::BasicGun)
+        {
+
+            availableOptions.push_back(
+            {
+                type,
+                LevelUpOptionKind::Unlock,
+                1
+            });
+
+        }
+
     }
 
 
-    if (!m_swordUnlocked)
+
+    for(
+        int i =
+        static_cast<int>(availableOptions.size()) - 1;
+
+        i > 0;
+
+        i--
+    )
     {
-        availableWeapons.push_back(WeaponType::Sword);
-    }
 
+        int randomIndex =
+            GetRandomValue(0,i);
 
-    if (!m_beamUnlocked)
-    {
-        availableWeapons.push_back(WeaponType::Beam);
-    }
-
-
-    if (!m_auraUnlocked)
-    {
-        availableWeapons.push_back(WeaponType::Aura);
-    }
-
-
-    // -------------------------
-    // RANDOMISE
-    // -------------------------
-
-    for (int i = static_cast<int>(availableWeapons.size()) - 1; i > 0; i--)
-    {
-        int randomIndex = GetRandomValue(0, i);
 
         std::swap(
-            availableWeapons[static_cast<std::size_t>(i)],
-            availableWeapons[static_cast<std::size_t>(randomIndex)]
+            availableOptions[i],
+            availableOptions[randomIndex]
         );
+
     }
 
 
-    // -------------------------
-    // MAXIMUM 3 OPTIONS
-    // -------------------------
 
-    m_choiceCount = std::min(3, static_cast<int>(availableWeapons.size()));
+    m_choiceCount =
+        std::min(
+            3,
+            static_cast<int>(
+                availableOptions.size()
+            )
+        );
 
 
-    for (int i = 0; i < m_choiceCount; i++)
+
+    for(int i=0;i<m_choiceCount;i++)
     {
-        m_choices[static_cast<std::size_t>(i)] = availableWeapons[static_cast<std::size_t>(i)];
 
-        m_cardScales[static_cast<std::size_t>(i)] = NORMAL_SCALE;
+        m_choices[i] =
+            availableOptions[i];
+
+
+        m_cardScales[i] =
+            NORMAL_SCALE;
+
     }
 
 
-    m_hoveredIndex = -1;
+
+    m_hoveredIndex=-1;
 }
 
 
-std::optional<WeaponType> LevelUpMenu::Update(float dt)
+
+// ------------------------------------------------------
+// Update
+// ------------------------------------------------------
+
+std::optional<LevelUpOption>
+LevelUpMenu::Update(float dt)
 {
-    Vector2 mousePosition = GetMousePosition();
+
+    Vector2 mouse =
+        GetMousePosition();
 
 
-    // -------------------------
-    // KEYBOARD
-    // -------------------------
 
-    if (m_choiceCount >= 1 && IsKeyPressed(KEY_ONE))
+    if(m_choiceCount >=1 &&
+       IsKeyPressed(KEY_ONE))
     {
         return m_choices[0];
     }
 
 
-    if (m_choiceCount >= 2 && IsKeyPressed(KEY_TWO))
+    if(m_choiceCount >=2 &&
+       IsKeyPressed(KEY_TWO))
     {
         return m_choices[1];
     }
 
 
-    if (m_choiceCount >= 3 && IsKeyPressed(KEY_THREE))
+    if(m_choiceCount >=3 &&
+       IsKeyPressed(KEY_THREE))
     {
         return m_choices[2];
     }
 
 
-    // -------------------------
-    // FIND HOVERED CARD
-    // -------------------------
 
-    int newHoveredIndex = -1;
+    int hovered=-1;
 
 
-    for (int i = 0; i < m_choiceCount; i++)
+
+    for(int i=0;i<m_choiceCount;i++)
     {
-        Rectangle cardRectangle = GetBaseCardRectangle(i, m_choiceCount);
 
-
-        if (CheckCollisionPointRec(mousePosition, cardRectangle))
+        if(CheckCollisionPointRec(
+            mouse,
+            GetBaseCardRectangle(
+                i,
+                m_choiceCount
+            )))
         {
-            newHoveredIndex = i;
 
+            hovered=i;
             break;
+
         }
+
     }
 
 
-    // -------------------------
-    // HOVER ENTER SOUND
-    // -------------------------
 
-    if (newHoveredIndex != m_hoveredIndex)
+    if(hovered != m_hoveredIndex)
     {
-        if (newHoveredIndex >= 0)
+
+        if(hovered>=0)
         {
             GameAudio::PlayMenuScroll();
         }
 
-        m_hoveredIndex = newHoveredIndex;
+
+        m_hoveredIndex=hovered;
+
     }
 
 
-    // -------------------------
-    // CARD SCALE
-    // -------------------------
 
-    for (int i = 0; i < m_choiceCount; i++)
+    for(int i=0;i<m_choiceCount;i++)
     {
-        bool hovered = i == m_hoveredIndex;
 
-        float targetScale = hovered ? HOVER_SCALE : NORMAL_SCALE;
+        bool selected =
+            i==m_hoveredIndex;
 
-        float& currentScale = m_cardScales[static_cast<std::size_t>(i)];
 
-        float interpolation = std::min(1.0f, HOVER_SPEED * dt);
+        float target =
+            selected
+            ?
+            HOVER_SCALE
+            :
+            NORMAL_SCALE;
 
-        currentScale += (targetScale - currentScale) * interpolation;
+
+
+        m_cardScales[i]
+            +=
+            (
+                target -
+                m_cardScales[i]
+            )
+            *
+            std::min(
+                1.0f,
+                HOVER_SPEED*dt
+            );
+
     }
 
 
-    // -------------------------
-    // MOUSE SELECT
-    // -------------------------
 
-    if (m_hoveredIndex >= 0 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    if(
+        m_hoveredIndex>=0 &&
+        IsMouseButtonPressed(
+            MOUSE_BUTTON_LEFT
+        )
+    )
     {
-        return m_choices[static_cast<std::size_t>(m_hoveredIndex)];
+        return m_choices[m_hoveredIndex];
     }
+
 
 
     return std::nullopt;
 }
 
 
-void LevelUpMenu::Draw() const
+
+
+// ------------------------------------------------------
+// Draw
+// ------------------------------------------------------
+
+void LevelUpMenu::Draw(
+    const Player& player
+) const
 {
-    // -------------------------
-    // TITLE
-    // -------------------------
 
-    const char* title = "LEVEL UP!";
 
-    Vector2 titleSize = GameText::Measure(title, 54.0f);
+    const char* title =
+        "LEVEL UP!";
+
+
+    Vector2 titleSize =
+        GameText::Measure(
+            title,
+            54
+        );
+
 
 
     GameText::Draw(
         title,
         {
-            static_cast<float>(GetScreenWidth()) / 2.0f - titleSize.x / 2.0f,
-            100.0f
+            GetScreenWidth()/2.0f
+            -
+            titleSize.x/2.0f,
+
+            70
         },
-        54.0f,
+
+        54,
+
         YELLOW
     );
 
 
-    // -------------------------
-    // SUBTITLE
-    // -------------------------
 
-    const char* subtitle = "CHOOSE A WEAPON";
+    const char* subtitle =
+        "CHOOSE YOUR POWER";
 
-    Vector2 subtitleSize = GameText::Measure(subtitle, 20.0f);
+
+
+    Vector2 subtitleSize =
+        GameText::Measure(
+            subtitle,
+            20
+        );
+
 
 
     GameText::Draw(
         subtitle,
         {
-            static_cast<float>(GetScreenWidth()) / 2.0f - subtitleSize.x / 2.0f,
-            172.0f
+            GetScreenWidth()/2.0f
+            -
+            subtitleSize.x/2.0f,
+
+            145
         },
-        20.0f,
+
+        20,
+
         WHITE
     );
 
 
-    // -------------------------
-    // CARDS
-    // -------------------------
 
-    for (int i = 0; i < m_choiceCount; i++)
+
+
+    for(int i=0;i<m_choiceCount;i++)
     {
-        WeaponType type = m_choices[static_cast<std::size_t>(i)];
-
-        const WeaponCardData& data = GetWeaponData(type);
 
 
-        Rectangle baseRectangle = GetBaseCardRectangle(i, m_choiceCount);
-
-        Rectangle cardRectangle = ScaleRectangle(
-            baseRectangle,
-            m_cardScales[static_cast<std::size_t>(i)]
-        );
+        auto option =
+            m_choices[i];
 
 
-        bool hovered = i == m_hoveredIndex;
+
+        Rectangle card =
+            ScaleRectangle(
+                GetBaseCardRectangle(
+                    i,
+                    m_choiceCount
+                ),
+
+                m_cardScales[i]
+            );
 
 
-        // -------------------------
-        // SHADOW
-        // -------------------------
 
-        Rectangle shadow =
-        {
-            cardRectangle.x + 8.0f,
-            cardRectangle.y + 10.0f,
-            cardRectangle.width,
-            cardRectangle.height
-        };
+        bool hovered =
+            i==m_hoveredIndex;
+
 
 
         DrawRectangleRounded(
-            shadow,
+            {
+                card.x+8,
+                card.y+10,
+                card.width,
+                card.height
+            },
+
             0.12f,
             8,
-            Fade(BLACK, 0.45f)
+
+            Fade(
+                BLACK,
+                0.45f
+            )
         );
 
-
-        // -------------------------
-        // BORDER
-        // -------------------------
-
-        Rectangle border =
-        {
-            cardRectangle.x - 4.0f,
-            cardRectangle.y - 4.0f,
-            cardRectangle.width + 8.0f,
-            cardRectangle.height + 8.0f
-        };
 
 
         DrawRectangleRounded(
-            border,
+            {
+                card.x-4,
+                card.y-4,
+                card.width+8,
+                card.height+8
+            },
+
             0.12f,
             8,
-            hovered ? YELLOW : WHITE
+
+            hovered
+            ?
+            YELLOW
+            :
+            WHITE
         );
 
-
-        // -------------------------
-        // CARD
-        // -------------------------
-
-        Color cardColor = Color{55, 55, 70, 255};
-
-
-        if (hovered)
-        {
-            cardColor = Color{75, 75, 95, 255};
-        }
 
 
         DrawRectangleRounded(
-            cardRectangle,
+            card,
+
             0.12f,
+
             8,
-            cardColor
+
+            hovered
+            ?
+            Color{75,75,95,255}
+            :
+            Color{55,55,70,255}
         );
 
 
-        // -------------------------
+
         // NUMBER
-        // -------------------------
-
-        const char* numberText = TextFormat("%d", i + 1);
-
 
         GameText::Draw(
-            numberText,
+            TextFormat(
+                "%d",
+                i+1
+            ),
+
             {
-                cardRectangle.x + 18.0f,
-                cardRectangle.y + 15.0f
+                card.x+20,
+                card.y+18
             },
-            18.0f,
-            hovered ? YELLOW : LIGHTGRAY
-        );
 
+            18,
 
-        // -------------------------
-        // NAME
-        // -------------------------
-
-        Vector2 nameSize = GameText::Measure(data.name, 26.0f);
-
-
-        GameText::Draw(
-            data.name,
-            {
-                cardRectangle.x + cardRectangle.width / 2.0f - nameSize.x / 2.0f,
-                cardRectangle.y + 60.0f
-            },
-            26.0f,
-            hovered ? YELLOW : WHITE
-        );
-
-
-        // -------------------------
-        // DESCRIPTION
-        // -------------------------
-
-        Vector2 lineOneSize = GameText::Measure(data.descriptionLine1, 16.0f);
-
-
-        GameText::Draw(
-            data.descriptionLine1,
-            {
-                cardRectangle.x + cardRectangle.width / 2.0f - lineOneSize.x / 2.0f,
-                cardRectangle.y + 125.0f
-            },
-            16.0f,
             LIGHTGRAY
         );
 
 
-        Vector2 lineTwoSize = GameText::Measure(data.descriptionLine2, 16.0f);
+
+        // WEAPON NAME
+
+        const char* weapon =
+            GetWeaponName(
+                option.type
+            );
+
+
+        Vector2 weaponSize =
+            GameText::Measure(
+                weapon,
+                24
+            );
+
 
 
         GameText::Draw(
-            data.descriptionLine2,
+            weapon,
+
             {
-                cardRectangle.x + cardRectangle.width / 2.0f - lineTwoSize.x / 2.0f,
-                cardRectangle.y + 152.0f
+                card.x+
+                card.width/2
+                -
+                weaponSize.x/2,
+
+                card.y+65
             },
-            16.0f,
-            LIGHTGRAY
+
+            24,
+
+            hovered
+            ?
+            YELLOW
+            :
+            WHITE
         );
 
 
-        // -------------------------
-        // SELECT
-        // -------------------------
 
-        const char* selectText = hovered ? "SELECT!" : "UNLOCK";
+        // LEVEL
 
-        Vector2 selectSize = GameText::Measure(selectText, 18.0f);
+        const char* level =
+            option.kind ==
+            LevelUpOptionKind::Unlock
+
+            ?
+
+            "NEW WEAPON"
+
+            :
+
+            TextFormat(
+                "LEVEL %d",
+                option.targetLevel
+            );
+
+
+
+        Vector2 levelSize =
+            GameText::Measure(
+                level,
+                18
+            );
 
 
         GameText::Draw(
-            selectText,
+            level,
+
             {
-                cardRectangle.x + cardRectangle.width / 2.0f - selectSize.x / 2.0f,
-                cardRectangle.y + 210.0f
+                card.x+
+                card.width/2
+                -
+                levelSize.x/2,
+
+                card.y+115
             },
-            18.0f,
+
+            18,
+
+            option.kind ==
+            LevelUpOptionKind::Unlock
+            ?
+            GREEN
+            :
+            SKYBLUE
+        );
+
+
+
+        // UPGRADE NAME
+
+
+        const char* upgrade =
+            option.kind ==
+            LevelUpOptionKind::Unlock
+
+            ?
+
+            "UNLOCK"
+
+            :
+
+            player.GetWeaponUpgradeName(
+                option.type
+            );
+
+
+
+        Vector2 upgradeSize =
+            GameText::Measure(
+                upgrade,
+                20
+            );
+
+
+
+        GameText::Draw(
+            upgrade,
+
+            {
+                card.x+
+                card.width/2
+                -
+                upgradeSize.x/2,
+
+                card.y+165
+            },
+
+            20,
+
             YELLOW
         );
+
+
+
+        // DESCRIPTION
+
+
+        const char* desc =
+            option.kind ==
+            LevelUpOptionKind::Unlock
+
+            ?
+
+            GetUnlockDescription(
+                option.type
+            )
+
+            :
+
+            player.GetWeaponUpgradeDescription(
+                option.type
+            );
+
+
+
+        GameText::Draw(
+            desc,
+
+            {
+                card.x+35,
+                card.y+220
+            },
+
+            16,
+
+            LIGHTGRAY
+        );
+
+
+
+        // ACTION
+
+
+        const char* action =
+            option.kind ==
+            LevelUpOptionKind::Unlock
+
+            ?
+
+            "PRESS TO UNLOCK"
+
+            :
+
+            "PRESS TO UPGRADE";
+
+
+
+        Vector2 actionSize =
+            GameText::Measure(
+                action,
+                16
+            );
+
+
+
+        GameText::Draw(
+            action,
+
+            {
+                card.x+
+                card.width/2
+                -
+                actionSize.x/2,
+
+                card.y+305
+            },
+
+            16,
+
+            YELLOW
+        );
+
+
     }
+
 }
 
 
-void LevelUpMenu::MarkUnlocked(WeaponType type)
+
+
+bool LevelUpMenu::HasAvailableOptions(
+    const Player& player
+) const
 {
-    switch (type)
+
+    for(auto type : ALL_WEAPONS)
     {
-        case WeaponType::Boomerang:
-            m_boomerangUnlocked = true;
-            break;
 
-        case WeaponType::Sword:
-            m_swordUnlocked = true;
-            break;
+        if(player.HasWeapon(type))
+        {
 
-        case WeaponType::Beam:
-            m_beamUnlocked = true;
-            break;
+            if(player.CanUpgradeWeapon(type))
+                return true;
 
-        case WeaponType::Aura:
-            m_auraUnlocked = true;
-            break;
+        }
 
-        case WeaponType::BasicGun:
-            break;
+        else if(type != WeaponType::BasicGun)
+        {
+            return true;
+        }
+
     }
-}
 
 
-bool LevelUpMenu::HasAvailableWeapons() const
-{
-    return
-        !m_boomerangUnlocked ||
-        !m_swordUnlocked ||
-        !m_beamUnlocked ||
-        !m_auraUnlocked;
+    return false;
 }

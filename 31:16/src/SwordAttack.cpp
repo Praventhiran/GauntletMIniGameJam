@@ -1,4 +1,5 @@
 #include "SwordAttack.hpp"
+#include "WeaponDraw.hpp"
 
 #include "Enemy.hpp"
 
@@ -85,27 +86,12 @@ void SwordAttack::Draw() const
         ) * RAD2DEG;
 
 
-    Rectangle swordRectangle =
-    {
-        start.x,
-        start.y,
-        SWORD_LENGTH,
-        SWORD_WIDTH
-    };
-
-
-    DrawRectanglePro(
-        swordRectangle,
-
-        {
-            0.0f,
-            SWORD_WIDTH / 2.0f
-        },
-
+    WeaponDraw::DrawJalurGemilangSlash(
+        start,
         angle,
-
-        LIGHTGRAY
+        1.0f
     );
+
 }
 
 

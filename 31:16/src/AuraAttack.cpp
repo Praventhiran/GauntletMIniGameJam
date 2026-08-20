@@ -1,4 +1,5 @@
 #include "AuraAttack.hpp"
+#include "WeaponDraw.hpp"
 
 #include "Enemy.hpp"
 
@@ -132,39 +133,10 @@ void AuraAttack::Draw() const
     }
 
 
-    DrawCircle(
-        static_cast<int>(
-            m_ownerPosition.x
-        ),
-
-        static_cast<int>(
-            m_ownerPosition.y
-        ),
-
+    WeaponDraw::DrawDurianAura(
+        m_ownerPosition,
         AURA_RADIUS,
-
-        Fade(
-            SKYBLUE,
-            opacity
-        )
-    );
-
-
-    DrawCircleLines(
-        static_cast<int>(
-            m_ownerPosition.x
-        ),
-
-        static_cast<int>(
-            m_ownerPosition.y
-        ),
-
-        AURA_RADIUS,
-
-        Fade(
-            WHITE,
-            opacity + 0.15f
-        )
+        opacity
     );
 }
 

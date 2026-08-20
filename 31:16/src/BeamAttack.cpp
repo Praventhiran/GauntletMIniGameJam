@@ -1,4 +1,7 @@
 #include "BeamAttack.hpp"
+#include "WeaponDraw.hpp"
+
+
 
 #include "Enemy.hpp"
 #include "raylib.h"
@@ -171,44 +174,27 @@ float BeamAttack::GetBeamLength() const
 
 void BeamAttack::Draw() const
 {
-    float beamLength =
-        GetBeamLength();
-
-
-    float angle =
-        std::atan2(
-            m_direction.y,
-            m_direction.x
-        ) * RAD2DEG;
-
-
-    Rectangle beamRectangle =
+    Vector2 start =
     {
         m_ownerPosition.x,
-        m_ownerPosition.y,
-        beamLength,
-        BEAM_WIDTH
+        m_ownerPosition.y
     };
 
 
-    Color beamColor =
-        Fade(
-            SKYBLUE,
-            m_opacity
-        );
+    Vector2 end =
+    {
+        m_ownerPosition.x +
+            m_direction.x * 1000.0f,
+
+        m_ownerPosition.y +
+            m_direction.y * 1000.0f
+    };
 
 
-    DrawRectanglePro(
-        beamRectangle,
-
-        {
-            0.0f,
-            BEAM_WIDTH / 2.0f
-        },
-
-        angle,
-
-        beamColor
+    WeaponDraw::DrawTehTarikBeam(
+        start,
+        end,
+        m_opacity
     );
 }
 

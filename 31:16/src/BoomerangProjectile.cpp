@@ -1,4 +1,5 @@
 #include "BoomerangProjectile.hpp"
+#include "WeaponDraw.hpp"
 
 #include <cmath>
 
@@ -160,11 +161,10 @@ void BoomerangProjectile::Update(float dt)
 
 void BoomerangProjectile::Draw() const
 {
-    DrawCircle(
-        static_cast<int>(m_position.x),
-        static_cast<int>(m_position.y),
-        m_radius,
-        ORANGE
+    WeaponDraw::DrawRotiCanai(
+        m_position,
+        m_direction,
+        1.0f
     );
 }
 

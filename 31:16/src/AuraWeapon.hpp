@@ -9,6 +9,14 @@ public:
 
     AuraWeapon();
 
+    WeaponType GetType() const override;
+
+    const char* GetDisplayName() const override;
+
+    const char* GetUpgradeName() const override;
+
+    const char* GetUpgradeDescription() const override;
+
 
 protected:
 
@@ -20,4 +28,6 @@ protected:
 
 
     bool RequiresAim() const override;
+
+    void ApplyUpgrade(int newLevel) override;
 };

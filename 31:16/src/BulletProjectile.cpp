@@ -1,4 +1,5 @@
 #include "BulletProjectile.hpp"
+#include "WeaponDraw.hpp"
 
 
 namespace
@@ -53,11 +54,10 @@ void BulletProjectile::Update(float dt)
 
 void BulletProjectile::Draw() const
 {
-    DrawCircle(
-        static_cast<int>(m_position.x),
-        static_cast<int>(m_position.y),
-        m_radius,
-        YELLOW
+    WeaponDraw::DrawFireworkLauncher(
+        m_position,
+        m_direction,
+        1.0f
     );
 }
 
