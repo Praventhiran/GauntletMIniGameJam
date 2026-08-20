@@ -22,11 +22,9 @@ Player::Player(Vector2 position)
     m_damageCooldown(0.0f)
     
 {
-    m_weapons.push_back(std::make_unique<SwordWeapon>());
-    m_weapons.push_back(std::make_unique<AuraWeapon>());
-    m_weapons.push_back(std::make_unique<BeamWeapon>());
+
     m_weapons.push_back(std::make_unique<BasicGunWeapon>());
-    m_weapons.push_back(std::make_unique<BoomerangWeapon>());
+
 
 }
 
